@@ -1,0 +1,2 @@
+plugins { id 'com.android.application' }
+android { namespace 'ch.piscis.iptv'; compileSdk 35; defaultConfig { applicationId 'ch.piscis.iptv'; minSdk 22; targetSdk 28; versionCode 29; versionName '29.0' } }
