@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Piscis IPTV Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            background-color: #000;
+            color: #fff;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+            margin: 0;
+            padding: 0;
+            position: fixed;
+            inset: 0;
+        }
+
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 45px;
+            height: 45px;
+            border: 4px solid rgba(59, 130, 246, 0.2);
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        #app-root {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            display: flex;
+            background: #000;
+            overflow: hidden;
+        }
+
+        aside {
+            width: 65px;
+            background: #0b0f17;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px 0;
+            gap: 12px;
+            z-index: 100;
+            flex-shrink: 0;
+            height: 100%;
+        }
+
+        .nav-logo {
+            font-size: 18px;
+            color: #3b82f6;
+            margin-bottom: 2px;
+        }
+
+        .nav-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: transparent;
+            border: none;
+            color: #94a3b8;
+            font-size: 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            cursor: pointer;
+        }
+
+        .nav-btn span { font-size: 7px; font-weight: 600; }
+        .nav-btn.active { background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; }
+
+        main {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: calc(100vw - 65px);
+            overflow: hidden;
+            background: #000;
+        }
+
+        header {
+            padding: 6px 12px;
+            background: #0b0f17;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            height: 40px;
+        }
+
+        .header-title h2 { font-size: 13px; font-weight: 700; }
+        .header-controls { display: flex; gap: 6px; align-items: center; }
+
+        .search-box {
+            position: relative;
+            width: 120px;
+        }
+
+        .search-box input {
+            width: 100%;
+            background: #000;
+            border: 1px solid rgba(255,255,255,0.08);
+            padding: 3px 6px 3px 24px;
+            border-radius: 6px;
+            color: #fff;
+            font-size: 11px;
+            outline: none;
+        }
+
+        .search-box i { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 10px; }
+
+        .user-badge {
+            font-size: 10px;
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            padding: 3px 8px;
+            border-radius: 6px;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            font-weight: 600;
+        }
+
+        .view-section {
+            flex-grow: 1;
+            overflow: hidden;
+            display: none;
+            flex-direction: column;
+            height: calc(100% - 40px);
+            width: 100%;
+        }
+        .view-section.active { display: flex; }
+
+        .live-layout {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .live-top-row {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            overflow: hidden;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            width: 100%;
+            height: calc(100% - 44vh);
+        }
+
+        .pane {
+            flex: 1 1 50%;
+            width: 50%;
+            background: #0b0f17;
+            border-right: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+            min-width: 0;
+        }
+        .pane:last-child { border-right: none; }
+
+        .pane-header {
+            padding: 6px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            font-size: 10px;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            background: rgba(0,0,0,0.2);
+            flex-shrink: 0;
+        }
+
+        .pane-list {
+            overflow-y: auto;
+            flex-grow: 1;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .list-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            cursor: pointer;
+            font-size: 11px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .list-item:hover, .list-item.active { background: #161f30; }
+        .list-item.active { border-left: 3px solid #3b82f6; color: #3b82f6; background: rgba(59, 130, 246, 0.05); }
+
+        .live-player-pane {
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            height: 44vh;
+            flex-shrink: 0;
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        #videoPlayer {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #000;
+            display: block;
+            margin: 0;
+            padding: 0;
+        }
+
+        .player-overlay-top {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: rgba(11, 14, 20, 0.85);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(255,255,255,0.08);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .player-overlay-top h3 { font-size: 11px; font-weight: 700; }
+
+        .vod-layout {
+            padding: 12px;
+            overflow-y: auto;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+
+        .category-chips {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 4px;
+            scrollbar-width: none;
+        }
+        .category-chips::-webkit-scrollbar { display: none; }
+
+        .chip {
+            padding: 5px 12px;
+            background: #0b0f17;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            font-size: 11px;
+            cursor: pointer;
+            white-space: nowrap;
+            color: #94a3b8;
+        }
+        .chip.active { background: #fff; color: #000; }
+
+        .media-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            gap: 10px;
+        }
+
+        .media-card {
+            background: #0b0f17;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .media-poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            background: #111620;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .media-poster img { width: 100%; height: 100%; object-fit: cover; }
+        .media-details { padding: 6px; }
+        .media-name { font-size: 10px; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .media-sub { font-size: 8px; color: #94a3b8; }
+
+        /* V28: edge-to-edge 16:9 player with no crop in portrait */
+        @media (orientation: portrait) {
+            #view-live.active .live-layout { height: 100%; min-height: 0; }
+            #view-live.active .live-top-row {
+                height: auto;
+                flex: 1 1 auto;
+                min-height: 0;
+                margin-bottom: 56.25vw;
+                margin-bottom: 56.25dvw;
+                border-bottom: 0;
+            }
+            #view-live.active .live-player-pane {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                top: auto;
+                width: 100vw;
+                width: 100dvw;
+                height: 56.25vw;
+                height: 56.25dvw;
+                aspect-ratio: 16 / 9;
+                max-width: none;
+                margin: 0;
+                padding: 0;
+                border: 0;
+                z-index: 110;
+                overflow: hidden;
+                background: #000;
+            }
+        }
+        #view-live.active #videoPlayer {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: #000;
+        }
+    
+/* Fire TV Pro skin — large focus targets and glass UI */
+:root {--accent:#10b981;--surface:#101b29;}
+html,body,#app-root{background:#07101b!important;color:#f5fafc}
+aside {width:108px!important;background:linear-gradient(180deg,#132739,#07111e)!important;border-right:1px solid #2c4759!important;gap:18px!important;padding-top:22px!important}
+main{width:calc(100vw - 108px)!important}
+.nav-logo{font-size:27px!important;color:#34d399!important;margin-bottom:12px!important}
+.nav-btn{width:88px!important;height:70px!important;border-radius:16px!important;font-size:21px!important}
+.nav-btn span{font-size:12px!important}
+.nav-btn:focus,.list-item:focus,.chip:focus,.media-card:focus,button:focus,input:focus{outline:3px solid #7df8d0!important;outline-offset:-2px!important;background:#1d4d50!important;color:#fff!important}
+.nav-btn.active{background:linear-gradient(140deg,#047857,#10b981)!important}
+header{height:72px!important;padding:10px 24px!important;background:linear-gradient(90deg,#142a3d,#0b1626)!important}
+.header-title h2{font-size:24px!important}
+.header-controls{gap:16px!important}
+.search-box{width:260px!important}.search-box input{font-size:17px!important;padding:10px 10px 10px 32px!important;background:#172c41!important}
+.user-badge{font-size:15px!important;background:#0d493d!important;color:#b6f7dc!important}
+.view-section{height:calc(100% - 72px)!important}
+.live-layout{flex-direction:row!important}
+.live-top-row{height:100%!important;flex:1 1 50%!important;min-width:0!important;border:0!important}
+.live-player-pane{height:100%!important;flex:1 1 50%!important;min-width:0!important}
+.pane{background:#0b1725!important}
+.pane-header{font-size:15px!important;padding:16px!important;color:#76d9c2!important}
+.list-item{padding:14px 12px!important;font-size:15px!important;min-height:50px!important}
+.list-item.active{background:#10483f!important;color:#b7ffe3!important;border-color:#10b981!important}
+.player-overlay-top{top:18px!important;left:18px!important;background:#09252bdd!important;border-radius:10px!important;padding:10px 18px!important}
+.player-overlay-top h3{font-size:17px!important}
+.media-grid{grid-template-columns:repeat(auto-fill,minmax(175px,1fr))!important;gap:20px!important}
+.media-card{border-radius:16px!important;background:#16283b!important}
+.media-name{font-size:15px!important}.media-sub{font-size:12px!important}
+.chip{font-size:16px!important;padding:12px 20px!important}
+#loginOverlay{background:radial-gradient(circle at 30% 10%,#194a52,#07111e 70%)!important}
+#loginOverlay form{background:#11283c!important;border-color:#397768!important;width:min(560px,90%)!important}
+@media (orientation:portrait){.live-layout{flex-direction:column!important}.live-top-row{width:100%!important}.live-player-pane{height:40%!important;flex:0 0 40%!important}}
+
+</style>
+</head>
+<body>
+<div id="loginOverlay" style="position:fixed;inset:0;background:#080d17;z-index:100000;display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto"><form onsubmit="connectIPTV(event)" style="width:min(420px,100%);padding:26px;background:#131d2e;border:1px solid #344663;border-radius:20px;display:grid;gap:14px"><h1 style="font-size:23px">Piscis IPTV Pro</h1><p style="font-size:13px;color:#b5c4db">Verbinde deinen eigenen IPTV-Zugang. Zugangsdaten werden nicht in dieser App gespeichert.</p><label>Serveradresse<input id="iptvHost" required type="url" placeholder="https://dein-anbieter.example" style="display:block;width:100%;padding:13px;margin-top:5px;background:#080d17;color:white;border:1px solid #52627b;border-radius:9px"></label><label>Benutzername<input id="iptvUser" required autocomplete="username" style="display:block;width:100%;padding:13px;margin-top:5px;background:#080d17;color:white;border:1px solid #52627b;border-radius:9px"></label><label>Passwort<input id="iptvPass" required type="password" autocomplete="current-password" style="display:block;width:100%;padding:13px;margin-top:5px;background:#080d17;color:white;border:1px solid #52627b;border-radius:9px"></label><p id="loginError" style="color:#ff8b8b;font-size:12px"></p><button type="submit" style="background:#2563eb;color:white;border:0;border-radius:10px;padding:14px;font-weight:700">IPTV verbinden</button><p style="color:#a5b4cb;font-size:11px">Hinweis: Für echte Benutzerkonten, geschützte Speicherung und HTTP-zu-HTTPS-Streaming wird zusätzlich ein sicherer Backend-Dienst benötigt.</p></form></div>
+
+    <div id="loader">
+        <div class="spinner"></div>
+        <h2 style="font-size: 13px; font-weight: 500; color: #94a3b8;">Verbinde zum Server...</h2>
+    </div>
+
+    <div id="app-root">
+        <aside>
+            <div class="nav-logo"><i class="fa-solid fa-tv"></i><div style="font-size:10px;font-weight:800;color:#a7f3d0">PISCIS PRO</div></div>
+            <button class="nav-btn active" onclick="switchTab('live', this)">
+                <i class="fa-solid fa-satellite-dish"></i>
+                <span>Live</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('movies', this)">
+                <i class="fa-solid fa-film"></i>
+                <span>Filme</span>
+            </button>
+            <button class="nav-btn" onclick="switchTab('series', this)">
+                <i class="fa-solid fa-clapperboard"></i>
+                <span>Serien</span>
+            </button>
+        </aside>
+
+        <main>
+            <header>
+                <div class="header-title">
+                    <h2 id="mainHeaderTitle">Live TV</h2>
+                </div>
+                <div class="header-controls">
+                    <div class="search-box">
+                        <i class="fa-solid fa-search"></i>
+                        <input type="text" placeholder="Suchen..." oninput="handleSearch(this.value)">
+                    </div>
+                    <div class="user-badge">PRO</div>
+                </div>
+            </header>
+
+            <div id="view-live" class="view-section active">
+                <div class="live-layout">
+                    <div class="live-top-row">
+                        <div class="pane">
+                            <div class="pane-header">Kategorien</div>
+                            <div class="pane-list" id="liveCats"></div>
+                        </div>
+                        <div class="pane">
+                            <div class="pane-header">Sender</div>
+                            <div class="pane-list" id="liveStreams"></div>
+                        </div>
+                    </div>
+                    <div class="live-player-pane">
+                        <div class="player-overlay-top">
+                            <h3 id="currentLiveTitle">Wähle einen Sender</h3>
+                        </div>
+                        <video id="videoPlayer" controls autoplay playsinline></video>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-movies" class="view-section">
+                <div class="vod-layout">
+                    <div class="category-chips" id="movieCats"></div>
+                    <div class="media-grid" id="movieGrid"></div>
+                </div>
+            </div>
+
+            <div id="view-series" class="view-section">
+                <div class="vod-layout">
+                    <div class="category-chips" id="seriesCats"></div>
+                    <div class="media-grid" id="seriesGrid"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API = {baseUrl: '', user: '', pass: ''};
+        function connectIPTV(event) {
+            event.preventDefault();
+            const host = document.getElementById('iptvHost').value.trim().replace(/\/+$/, '');
+            const username = document.getElementById('iptvUser').value.trim();
+            const password = document.getElementById('iptvPass').value;
+            if (!/^https:\/\//i.test(host) && location.protocol === 'https:') {
+                document.getElementById('loginError').textContent = 'Dieser Server nutzt kein HTTPS. Eine sichere Web-App kann HTTP-IPTV-Streams im Browser blockieren. Bitte HTTPS-Serveradresse beim Anbieter anfordern.';
+                return;
+            }
+            if (!/^https?:\/\//i.test(host)) {document.getElementById('loginError').textContent='Bitte eine vollständige Serveradresse mit https:// eingeben.';return;}
+            API.baseUrl = host; API.user = username; API.pass = password;
+            document.getElementById('loginOverlay').style.display = 'none';
+            initializeIPTV();
+        }
+
+        let db = { liveCats: [], liveStreams: [], movieCats: [], movies: [], seriesCats: [], series: [] };
+        let activeTab = 'live';
+        let hlsInstance = null;
+
+        function getUrl(action) {
+            return `${API.baseUrl}/player_api.php?username=${API.user}&password=${API.pass}&action=${action}`;
+        }
+
+        async function initializeIPTV() {
+            try {
+                const [cRes, sRes] = await Promise.all([
+                    fetch(getUrl('get_live_categories')),
+                    fetch(getUrl('get_live_streams'))
+                ]);
+                
+                db.liveCats = await cRes.json() || [];
+                db.liveStreams = await sRes.json() || [];
+
+                initLiveUI();
+                
+                const loader = document.getElementById('loader');
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 300);
+
+                setTimeout(async () => {
+                    try {
+                        const [mc, ms, sc, ss] = await Promise.all([
+                            fetch(getUrl('get_vod_categories')).then(r => r.json()),
+                            fetch(getUrl('get_vod_streams')).then(r => r.json()),
+                            fetch(getUrl('get_series_categories')).then(r => r.json()),
+                            fetch(getUrl('get_series')).then(r => r.json())
+                        ]);
+                        db.movieCats = Array.isArray(mc) ? mc : [];
+                        db.movies = Array.isArray(ms) ? ms : [];
+                        db.seriesCats = Array.isArray(sc) ? sc : [];
+                        db.series = Array.isArray(ss) ? ss : [];
+                        initMoviesUI();
+                        initSeriesUI();
+                    } catch(e) {}
+                }, 400);
+
+            } catch (err) {
+                document.getElementById('loader').innerHTML = `<h3 style="color:#ef4444;font-size:13px;">Verbindungsfehler.</h3>`;
+            }
+        }
+
+        function switchTab(tab, btn) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`view-${tab}`).classList.add('active');
+            activeTab = tab;
+            document.getElementById('mainHeaderTitle').innerText = tab === 'live' ? 'Live TV' : (tab === 'movies' ? 'Filme (VOD)' : 'Serien');
+        }
+
+        function initLiveUI() {
+            const list = document.getElementById('liveCats');
+            list.innerHTML = `<div class="list-item active" onclick="filterLive('all', this)"><i class="fa-solid fa-globe"></i> Alle Sender</div>`;
+            
+            if(Array.isArray(db.liveCats)) {
+                db.liveCats.forEach(cat => {
+                    const div = document.createElement('div');
+                    div.className = 'list-item';
+                    div.innerHTML = `<i class="fa-solid fa-folder" style="color:#3b82f6;flex-shrink:0;"></i> <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${cat.category_name}</span>`;
+                    div.onclick = () => filterLive(cat.category_id, div);
+                    list.appendChild(div);
+                });
+            }
+            renderStreams(db.liveStreams);
+        }
+
+        function filterLive(catId, el) {
+            document.querySelectorAll('#liveCats .list-item').forEach(i => i.classList.remove('active'));
+            el.classList.add('active');
+            if(catId === 'all') {
+                renderStreams(db.liveStreams);
+            } else {
+                renderStreams(db.liveStreams.filter(s => s.category_id == catId));
+            }
+        }
+
+        function renderStreams(streams) {
+            const container = document.getElementById('liveStreams');
+            container.innerHTML = '';
+            if(!Array.isArray(streams) || streams.length === 0) {
+                container.innerHTML = `<div style="padding:10px;font-size:11px;color:#94a3b8;">Keine Sender</div>`;
+                return;
+            }
+            streams.slice(0, 200).forEach(st => {
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <div style="width:18px;height:18px;background:#161d2d;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        ${st.stream_icon ? `<img src="${st.stream_icon}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none'">` : `<i class="fa-solid fa-tv" style="font-size:8px;"></i>`}
+                    </div>
+                    <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${st.name}</div>
+                `;
+                div.onclick = () => {
+                    document.querySelectorAll('#liveStreams .list-item').forEach(i => i.classList.remove('active'));
+                    div.classList.add('active');
+                    playStream(st.stream_id, st.name);
+                };
+                container.appendChild(div);
+            });
+        }
+
+        function playStream(id, name) {
+            document.getElementById('currentLiveTitle').innerText = name;
+            const video = document.getElementById('videoPlayer');
+            const url = `${API.baseUrl}/live/${API.user}/${API.pass}/${id}.m3u8`;
+
+            if(hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+
+            if(Hls.isSupported()) {
+                hlsInstance = new Hls();
+                hlsInstance.loadSource(url);
+                hlsInstance.attachMedia(video);
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(()=>{}));
+            } else if(video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => video.play().catch(()=>{}));
+            }
+        }
+
+        function initMoviesUI() {
+            const chips = document.getElementById('movieCats');
+            chips.innerHTML = `<div class="chip active" onclick="filterMovies('all', this)">Alle</div>`;
+            db.movieCats.forEach(c => {
+                const ch = document.createElement('div');
+                ch.className = 'chip';
+                ch.innerText = c.category_name;
+                ch.onclick = () => filterMovies(c.category_id, ch);
+                chips.appendChild(ch);
+            });
+            renderMovies(db.movies);
+        }
+
+        function filterMovies(id, el) {
+            document.querySelectorAll('#movieCats .chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderMovies(id === 'all' ? db.movies : db.movies.filter(m => m.category_id == id));
+        }
+
+        function renderMovies(arr) {
+            const grid = document.getElementById('movieGrid');
+            grid.innerHTML = '';
+            arr.slice(0, 100).forEach(m => {
+                const card = document.createElement('div');
+                card.className = 'media-card';
+                card.innerHTML = `
+                    <div class="media-poster">${m.stream_icon ? `<img src="${m.stream_icon}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\'fa-solid fa-film\'></i>'">` : `<i class="fa-solid fa-film"></i>`}</div>
+                    <div class="media-details"><div class="media-name">${m.name}</div><div class="media-sub">Film</div></div>
+                `;
+                card.onclick = () => alert(m.name);
+                grid.appendChild(card);
+            });
+        }
+
+        function initSeriesUI() {
+            const chips = document.getElementById('seriesCats');
+            chips.innerHTML = `<div class="chip active" onclick="filterSeries('all', this)">Alle</div>`;
+            db.seriesCats.forEach(c => {
+                const ch = document.createElement('div');
+                ch.className = 'chip';
+                ch.innerText = c.category_name;
+                ch.onclick = () => filterSeries(c.category_id, ch);
+                chips.appendChild(ch);
+            });
+            renderSeries(db.series);
+        }
+
+        function filterSeries(id, el) {
+            document.querySelectorAll('#seriesCats .chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderSeries(id === 'all' ? db.series : db.series.filter(s => s.category_id == id));
+        }
+
+        function renderSeries(arr) {
+            const grid = document.getElementById('seriesGrid');
+            grid.innerHTML = '';
+            arr.slice(0, 100).forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'media-card';
+                card.innerHTML = `
+                    <div class="media-poster">${s.cover ? `<img src="${s.cover}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\'fa-solid fa-clapperboard\'></i>'">` : `<i class="fa-solid fa-clapperboard"></i>`}</div>
+                    <div class="media-details"><div class="media-name">${s.name}</div><div class="media-sub">Serie</div></div>
+                `;
+                card.onclick = () => alert(s.name);
+                grid.appendChild(card);
+            });
+        }
+
+        function handleSearch(q) {
+            const query = q.toLowerCase();
+            if(activeTab === 'live') {
+                renderStreams(db.liveStreams.filter(s => s.name && s.name.toLowerCase().includes(query)));
+            } else if(activeTab === 'movies') {
+                renderMovies(db.movies.filter(m => m.name && m.name.toLowerCase().includes(query)));
+            } else if(activeTab === 'series') {
+                renderSeries(db.series.filter(s => s.name && s.name.toLowerCase().includes(query)));
+            }
+        }
+    </script>
+    <script>
+      if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+        window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+      }
+    </script>
+</body>
+</html>
